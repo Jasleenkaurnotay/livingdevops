@@ -1,0 +1,24 @@
+---
+about_me:
+  name: Jasleen Kaur
+  city: Pune
+  role: Devops engineer
+  hobbies:
+    - reading
+    - cooking
+  tools:
+    - Git
+    - Docker
+    - Terraform
+    - AWS
+  education:
+    degree: "M.Sc. Comp. Sci."
+    university: Panjab university
+    year: 2011
+  projects:
+    - name: two-tier-app
+      tech: Flask
+      status: completed
+    - name: Portfolio Site
+      tech: Flask
+      status: completed
