@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Celery Demo — DevOps Games{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h1>📬 Background Tasks Demo</h1>
+    <p>Celery + Redis async workers — because even games need background jobs.</p>
+</section>
+
+<div class="two-col celery-demo">
+    <div class="panel">
+        <h2>📧 Async Email</h2>
+        <p class="panel-desc">Queue an email via Celery worker (requires SMTP credentials).</p>
+        <form method="POST">
+            <div class="form-group">
+                <label>Email address</label>
+                <input type="email" name="email" value="{{ email }}" required class="form-input">
+            </div>
+            <div class="form-actions">
+                <button type="submit" name="submit" value="Send" class="btn btn-primary">Send Now</button>
+                <button type="submit" name="submit" value="Send Later" class="btn btn-ghost">Send in 1 Minute</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h2>⚙️ Long-Running Task</h2>
+        <p class="panel-desc">Simulates a deploy pipeline with live progress polling.</p>
+        <button id="start-task" class="btn btn-primary">Start Deploy Simulation</button>
+        <div id="task-status" class="task-status hidden">
+            <div class="task-progress-bar">
+                <div id="task-progress-fill" class="task-progress-fill"></div>
+            </div>
+            <p id="task-message" class="task-message">Initializing...</p>
+            <p id="task-detail" class="task-detail"></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('start-task').addEventListener('click', async () => {
+    const btn = document.getElementById('start-task');
+    const status = document.getElementById('task-status');
+    const fill = document.getElementById('task-progress-fill');
+    const message = document.getElementById('task-message');
+    const detail = document.getElementById('task-detail');
+
+    btn.disabled = true;
+    status.classList.remove('hidden');
+    message.textContent = 'Queuing task...';
+    detail.textContent = '';
+    fill.style.width = '0%';
+
+    try {
+        const resp = await fetch('{{ url_for("longtask") }}', { method: 'POST' });
+        const taskUrl = resp.headers.get('Location');
+        if (!taskUrl) throw new Error('No task ID returned');
+
+        const poll = setInterval(async () => {
+            const statusResp = await fetch(taskUrl);
+            const data = await statusResp.json();
+            const pct = data.total ? Math.round((data.current / data.total) * 100) : 0;
+            fill.style.width = pct + '%';
+            message.textContent = data.status || data.state;
+            detail.textContent = data.state === 'SUCCESS'
+                ? '✅ Task completed! Result: ' + (data.result ?? 'done')
+                : `${data.current || 0} / ${data.total || '?'} steps`;
+
+            if (data.state === 'SUCCESS' || data.state === 'FAILURE') {
+                clearInterval(poll);
+                btn.disabled = false;
+                if (data.state === 'SUCCESS') showToast('Deploy simulation complete!', 'success');
+                else showToast('Task failed: ' + data.status, 'error');
+            }
+        }, 800);
+    } catch (e) {
+        message.textContent = 'Failed to start task';
+        detail.textContent = e.message;
+        btn.disabled = false;
+        showToast('Could not start Celery task', 'error');
+    }
+});
+</script>
+{% endblock %}
